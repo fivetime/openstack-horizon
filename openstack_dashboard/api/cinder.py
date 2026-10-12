@@ -37,6 +37,7 @@ from openstack_dashboard.api import _nova
 from openstack_dashboard.api import base
 from openstack_dashboard.api import microversions
 from openstack_dashboard.contrib.developer.profiler import api as profiler
+from openstack_dashboard import exceptions as dashboard_exception
 from openstack_dashboard.utils import settings as utils
 
 
@@ -363,20 +364,36 @@ def volume_list_paged(request, search_opts=None, marker=None, paginate=False,
     return volumes, has_more_data, has_prev_data
 
 
+def is_server_attachment(attachment):
+    """Whether a volume attachment can belong to a Nova server.
+
+    The attachments API takes the instance UUID as optional, so a volume
+    can be attached without Nova: os-brick's local-attach sets none, only
+    a host name. Standalone Ironic sets the node UUID, which Nova does not
+    know either, so a server_id is still no proof that the server exists.
+    """
+    return bool(attachment.get('server_id'))
+
+
 @profiler.trace
 def volume_get(request, volume_id):
     client = _cinderclient_with_generic_groups(request)
     volume_data = client.volumes.get(volume_id)
 
     for attachment in volume_data.attachments:
-        if "server_id" in attachment:
-            instance = _nova.server_get(request, attachment['server_id'])
-            attachment['instance_name'] = instance.name
-        else:
-            # Nova volume can occasionally send back error'd attachments
-            # the lack a server_id property; to work around that we'll
-            # give the attached instance a generic name.
-            attachment['instance_name'] = _("Unknown instance")
+        instance_name = None
+        if is_server_attachment(attachment):
+            try:
+                instance_name = _nova.server_get(
+                    request, attachment['server_id']).name
+            except dashboard_exception.NOT_FOUND:
+                pass
+        # Nova volume can occasionally send back error'd attachments that
+        # lack a server_id; those, and attachments that do not belong to a
+        # Nova server at all, get the host name or a generic name.
+        attachment['instance_name'] = (instance_name or
+                                       attachment.get('host_name') or
+                                       _("Unknown instance"))
 
     volume_data.transfer = None
     if volume_data.status == 'awaiting-transfer':

@@ -18,6 +18,7 @@ from urllib import parse
 from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
+from novaclient import exceptions as nova_exceptions
 
 from openstack_dashboard import api
 from openstack_dashboard.dashboards.project.volumes \
@@ -376,6 +377,34 @@ class VolumeTests(test.BaseAdminViewTests):
         self.mock_volume_get.assert_called_once_with(
             test.IsHttpRequest(), volume.id)
         self.assertNotContains(res, status_option)
+
+    @test.create_mocks({
+        api.nova: ['server_get'],
+        api.cinder: ['tenant_absolute_limits', 'volume_get',
+                     'volume_snapshot_list']})
+    def test_detail_view_attachments_not_on_server(self):
+        volume = self.cinder_volumes.first()
+        node_uuid = '9c3c1e2e-58b5-4b8a-9a1e-6a8d2e0f4c11'
+        # One attached without Nova, one whose instance Nova does not know
+        # (standalone Ironic records the node UUID).
+        volume.attachments = [
+            {"server_id": None, "host_name": "server01", "device": "na"},
+            {"server_id": node_uuid, "host_name": None, "device": "/dev/sdb"},
+        ]
+        self.mock_server_get.side_effect = nova_exceptions.NotFound(404)
+        self.mock_tenant_absolute_limits.return_value = \
+            self.cinder_limits['absolute']
+        self.mock_volume_get.return_value = volume
+        self.mock_volume_snapshot_list.return_value = []
+
+        res = self.client.get(reverse(DETAIL_URL, args=[volume.id]))
+
+        self.assertTemplateUsed(res, 'horizon/common/_detail.html')
+        self.assertNoMessages()
+        self.assertContains(res, "na on server01")
+        self.assertContains(res, "/dev/sdb on %s" % node_uuid)
+        self.mock_server_get.assert_called_once_with(test.IsHttpRequest(),
+                                                     node_uuid)
 
     @test.create_mocks({
         api.nova: ['server_get'],

@@ -228,8 +228,7 @@ class DetailView(tabs.TabbedTableView):
             if snapshots:
                 setattr(volume, 'has_snapshot', True)
             for att in volume.attachments:
-                att['instance'] = nova.server_get(self.request,
-                                                  att['server_id'])
+                att['instance'] = self._get_attached_server(att)
             if getattr(volume, 'group_id', None):
                 volume.group = cinder.group_get(self.request, volume.group_id)
             else:
@@ -240,6 +239,14 @@ class DetailView(tabs.TabbedTableView):
                               _('Unable to retrieve volume details.'),
                               redirect=redirect)
         return volume, snapshots
+
+    def _get_attached_server(self, attachment):
+        if not cinder.is_server_attachment(attachment):
+            return None
+        try:
+            return nova.server_get(self.request, attachment['server_id'])
+        except dashboard_exception.NOT_FOUND:
+            return None
 
     def get_redirect_url(self):
         return reverse('horizon:project:volumes:index')

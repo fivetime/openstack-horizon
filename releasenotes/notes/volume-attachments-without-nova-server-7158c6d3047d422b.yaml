@@ -1,0 +1,12 @@
+---
+fixes:
+  - |
+    Volumes attached without Nova no longer break the volume panels. Cinder
+    does not require an attachment to belong to a Nova server: os-brick's
+    local-attach leaves the server unset and standalone Ironic records the
+    node UUID instead. Horizon looked such attachments up in Nova anyway,
+    so the volume list showed "Instance None could not be found" and the
+    volume detail, extend, edit and other volume pages failed to load. These
+    attachments are now shown by their host name (or the recorded ID)
+    without a link to an instance, and they cannot be detached from Horizon,
+    since detaching goes through Nova.
