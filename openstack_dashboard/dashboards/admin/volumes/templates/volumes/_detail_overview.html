@@ -54,10 +54,18 @@
   {% for attachment in volume.attachments %}
     <dt>{% trans "Attached To" %}</dt>
     <dd class="word-wrap">
+      {% if attachment.instance %}
       {% url detail_url.instance attachment.server_id as instance_url %}
       {% blocktrans trimmed with instance_name=attachment.instance.name device=attachment.device %}
       <a href="{{ instance_url }}">{{ instance_name }}</a> on {{ device }}
       {% endblocktrans %}
+      {% else %}
+      {% trans "Unknown instance" as unknown_instance %}
+      {% comment %}Same message as the volume table's attachment column, which is translated.{% endcomment %}
+      {% blocktrans trimmed with instance=attachment.host_name|default:attachment.server_id|default:unknown_instance dev=attachment.device %}
+      {{ dev }} on {{ instance }}
+      {% endblocktrans %}
+      {% endif %}
     </dd>
   {% empty %}
     <dt>{% trans "Attached To" %}</dt>

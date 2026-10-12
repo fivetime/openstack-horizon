@@ -31,6 +31,7 @@ from horizon import tables
 
 from openstack_dashboard import api
 from openstack_dashboard.api import cinder
+from openstack_dashboard import exceptions as dashboard_exception
 from openstack_dashboard import policy
 from openstack_dashboard.usage import quotas
 
@@ -385,14 +386,25 @@ def get_size(volume):
     return _("%sGiB") % volume.size
 
 
+def _get_attachment_host_name(attachment):
+    # Shown for attachments without a Nova server, without a link.
+    return html.escape(attachment.get("host_name") or
+                       attachment.get("server_id") or
+                       str(_("Unknown instance")))
+
+
 def get_attachment_name(request, attachment, instance_detail_url=None):
     server_id = attachment.get("server_id", None)
     if "instance" in attachment and attachment['instance']:
         name = attachment["instance"].name
+    elif not cinder.is_server_attachment(attachment):
+        return _get_attachment_host_name(attachment)
     else:
         try:
             server = api.nova.server_get(request, server_id)
             name = server.name
+        except dashboard_exception.NOT_FOUND:
+            return _get_attachment_host_name(attachment)
         except Exception:
             name = server_id
             exceptions.handle(request, _("Unable to retrieve "
@@ -634,6 +646,11 @@ class DetachVolume(tables.BatchAction):
             "Detaching Volumes",
             count
         )
+
+    def allowed(self, request, attachment=None):
+        # Detaching goes through Nova, which cannot detach a volume that was
+        # not attached to one of its servers.
+        return attachment is None or cinder.is_server_attachment(attachment)
 
     def action(self, request, obj_id):
         attachment = self.table.get_object_by_id(obj_id)

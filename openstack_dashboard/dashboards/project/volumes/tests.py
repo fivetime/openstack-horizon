@@ -22,6 +22,7 @@ from django.forms import widgets
 from django.template.defaultfilters import slugify
 from django.test.utils import override_settings
 from django.urls import reverse
+from novaclient import exceptions as nova_exceptions
 
 from openstack_dashboard import api
 from openstack_dashboard.api import cinder
@@ -36,6 +37,9 @@ DETAIL_URL = ('horizon:project:volumes:detail')
 INDEX_URL = reverse('horizon:project:volumes:index')
 SEARCH_OPTS = dict(status=api.cinder.VOLUME_STATE_AVAILABLE)
 ATTACHMENT_ID = '6061364b-6612-48a9-8fee-1a38fe072547'
+# An attachment that does not belong to a Nova server: standalone
+# Ironic records the node UUID as the attachment's instance.
+NODE_UUID = '9c3c1e2e-58b5-4b8a-9a1e-6a8d2e0f4c11'
 
 
 class VolumeIndexViewTests(test.ResetImageAPIVersionMixin, test.TestCase):
@@ -253,6 +257,31 @@ class VolumeIndexViewTests(test.ResetImageAPIVersionMixin, test.TestCase):
         volume = mock.Mock(attachments=[])
         result = column.get_raw_data(volume)
         self.assertIsNone(result)
+
+    @mock.patch.object(api.nova, 'server_get')
+    def test_attachment_column_without_server(self, mock_server_get):
+        # e.g. attached with os-brick's local-attach: no server_id at all
+        column = volume_tables.AttachmentColumn("attachments")
+        column.table = mock.Mock()
+        volume = mock.Mock(attachments=[{"server_id": None,
+                                         "host_name": "server01",
+                                         "device": "na"}])
+        result = column.get_raw_data(volume)
+        self.assertEqual("na on server01", result)
+        mock_server_get.assert_not_called()
+
+    @mock.patch.object(api.nova, 'server_get')
+    def test_attachment_column_server_not_found(self, mock_server_get):
+        mock_server_get.side_effect = nova_exceptions.NotFound(404)
+        column = volume_tables.AttachmentColumn("attachments")
+        column.table = mock.Mock()
+        volume = mock.Mock(attachments=[{"server_id": NODE_UUID,
+                                         "host_name": None,
+                                         "device": "/dev/sdb"}])
+        result = column.get_raw_data(volume)
+        self.assertEqual("/dev/sdb on %s" % NODE_UUID, result)
+        mock_server_get.assert_called_once_with(column.table.request,
+                                                NODE_UUID)
 
 
 class VolumeViewTests(test.ResetImageAPIVersionMixin, test.TestCase):
@@ -1268,6 +1297,35 @@ class VolumeViewTests(test.ResetImageAPIVersionMixin, test.TestCase):
         mock_get.assert_called_once_with(test.IsHttpRequest(), volume.id)
         mock_server_list.assert_called_once()
 
+    @mock.patch.object(api.nova, 'server_get')
+    @mock.patch.object(api.nova, 'server_list')
+    @mock.patch.object(cinder, 'volume_get')
+    def test_edit_attachments_without_server(self, mock_get,
+                                             mock_server_list,
+                                             mock_server_get):
+        volume = self.cinder_volumes.first()
+        volume.attachments = [{'id': volume.id,
+                               'volume_id': volume.id,
+                               'volume_name': volume.name,
+                               'attachment_id': ATTACHMENT_ID,
+                               'device': 'na',
+                               'server_id': None,
+                               'host_name': 'server01'}]
+
+        mock_get.return_value = volume
+        mock_server_list.return_value = [[], False]
+
+        url = reverse('horizon:project:volumes:attach',
+                      args=[volume.id])
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertNoMessages()
+        self.assertContains(res, 'server01')
+        # Detaching goes through Nova, which knows nothing about it.
+        self.assertNotContains(res, 'attachments__detach__%s' % ATTACHMENT_ID)
+        mock_server_get.assert_not_called()
+
     @mock.patch.object(api.nova, 'server_list')
     @mock.patch.object(cinder, 'volume_get')
     @override_settings(OPENSTACK_HYPERVISOR_FEATURES={'can_set_mount_point':
@@ -1526,6 +1584,52 @@ class VolumeViewTests(test.ResetImageAPIVersionMixin, test.TestCase):
         self.mock_server_get.assert_called_once_with(test.IsHttpRequest(),
                                                      server.id)
         self.mock_tenant_absolute_limits.assert_called_once()
+
+    def _test_detail_view_attachment_not_on_server(self, attachment,
+                                                   expected):
+        volume = self.cinder_volumes.first()
+        volume.attachments = [dict(attachment, attachment_id=ATTACHMENT_ID)]
+
+        self.mock_volume_get.return_value = volume
+        self.mock_volume_snapshot_list.return_value = []
+        self.mock_tenant_absolute_limits.return_value = \
+            self.cinder_limits['absolute']
+
+        url = reverse('horizon:project:volumes:detail',
+                      args=[volume.id])
+        res = self.client.get(url)
+
+        self.assertTemplateUsed(res, 'horizon/common/_detail.html')
+        self.assertEqual(res.context['volume'].id, volume.id)
+        self.assertNoMessages()
+        self.assertContains(res, expected)
+        self.assertNotContains(res, 'horizon:project:instances:detail')
+
+    @test.create_mocks({
+        api.nova: ['server_get'],
+        cinder: ['volume_snapshot_list',
+                 'volume_get',
+                 'tenant_absolute_limits'],
+    })
+    def test_detail_view_attachment_without_server(self):
+        self._test_detail_view_attachment_not_on_server(
+            {"server_id": None, "host_name": "server01", "device": "na"},
+            "na on server01")
+        self.mock_server_get.assert_not_called()
+
+    @test.create_mocks({
+        api.nova: ['server_get'],
+        cinder: ['volume_snapshot_list',
+                 'volume_get',
+                 'tenant_absolute_limits'],
+    })
+    def test_detail_view_attachment_server_not_found(self):
+        self.mock_server_get.side_effect = nova_exceptions.NotFound(404)
+        self._test_detail_view_attachment_not_on_server(
+            {"server_id": NODE_UUID, "host_name": None, "device": "/dev/sdb"},
+            "/dev/sdb on %s" % NODE_UUID)
+        self.mock_server_get.assert_called_once_with(test.IsHttpRequest(),
+                                                     NODE_UUID)
 
     @mock.patch.object(cinder, 'volume_get_encryption_metadata')
     @mock.patch.object(cinder, 'volume_get')

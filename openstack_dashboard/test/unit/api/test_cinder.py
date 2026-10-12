@@ -18,8 +18,10 @@ from django.conf import settings
 from django.test.utils import override_settings
 
 import cinderclient as cinder_client
+from novaclient import exceptions as nova_exceptions
 
 from openstack_dashboard import api
+from openstack_dashboard.api import _nova
 from openstack_dashboard.test import helpers as test
 
 
@@ -296,6 +298,42 @@ class CinderApiTests(test.APIMockTestCase):
         self.assertEqual(len(expected_volumes), len(api_volumes))
         self.assertTrue(more_data)
         self.assertFalse(prev_data)
+
+    @test.create_mocks({
+        api.cinder: [
+            ('_cinderclient_with_generic_groups', 'cinderclient_groups'),
+        ],
+        _nova: ['server_get'],
+    })
+    def test_volume_get_attachments(self):
+        volume = self.cinder_volumes.first()
+        server = self.servers.first()
+        node_uuid = '9c3c1e2e-58b5-4b8a-9a1e-6a8d2e0f4c11'
+        volume.attachments = [
+            {"server_id": server.id, "host_name": None},
+            # attached without Nova (os-brick local-attach)
+            {"server_id": None, "host_name": "server01"},
+            # not a Nova server (standalone Ironic records the node UUID)
+            {"server_id": node_uuid, "host_name": None},
+        ]
+        volumes_mock = self.mock_cinderclient_groups.return_value.volumes
+        volumes_mock.get.return_value = volume
+
+        def server_get(request, server_id):
+            if server_id == server.id:
+                return server
+            raise nova_exceptions.NotFound(404)
+        self.mock_server_get.side_effect = server_get
+
+        api_volume = api.cinder.volume_get(self.request, volume.id)
+
+        self.assertEqual([server.name, "server01", "Unknown instance"],
+                         [str(a['instance_name'])
+                          for a in api_volume.attachments])
+        self.assertEqual(
+            [mock.call(self.request, server.id),
+             mock.call(self.request, node_uuid)],
+            self.mock_server_get.call_args_list)
 
     @test.create_mocks({
         api.cinder: [
