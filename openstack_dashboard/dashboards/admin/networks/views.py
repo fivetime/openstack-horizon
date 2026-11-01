@@ -162,7 +162,8 @@ class UpdateView(user_views.UpdateView):
                 'name': network['name'],
                 'admin_state': network['is_admin_state_up'],
                 'shared': network['is_shared'],
-                'external': network['is_router_external']}
+                'external': network['is_router_external'],
+                'internal_dns': network.get('is_internal_dns_enabled')}
 
 
 class NetworkDetailsTabs(tabs.DetailTabsGroup):

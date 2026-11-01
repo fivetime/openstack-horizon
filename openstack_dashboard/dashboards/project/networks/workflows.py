@@ -72,11 +72,25 @@ class CreateNetworkInfoAction(workflows.Action):
         help_text=_("Maximum Transmission Unit. "
                     "Minimum is 68 bytes for the IPv4 subnet "
                     "and 1280 bytes for the IPv6 subnet."))
+    internal_dns = forms.BooleanField(
+        label=_("Internal DNS"),
+        initial=True,
+        required=False,
+        help_text=_("If checked, the names of the ports of the network are "
+                    "resolved from within the network. Uncheck it when the "
+                    "instances only use a DNS service reachable from the "
+                    "network."))
 
     def __init__(self, request, *args, **kwargs):
         super().__init__(request, *args, **kwargs)
         if not policy.check((("network", "create_network:shared"),), request):
             self.fields['shared'].widget = forms.HiddenInput()
+        internal_dns_rule = (("network",
+                              "create_network:internal_dns_enabled"),)
+        if not (api.neutron.is_extension_supported(request,
+                                                   'network-internal-dns') and
+                policy.check(internal_dns_rule, request)):
+            del self.fields['internal_dns']
         try:
             if api.neutron.is_extension_supported(request,
                                                   'network_availability_zone'):
@@ -101,7 +115,7 @@ class CreateNetworkInfoAction(workflows.Action):
 class CreateNetworkInfo(workflows.Step):
     action_class = CreateNetworkInfoAction
     contributes = ("net_name", "admin_state", "with_subnet", "shared",
-                   "az_hints", "mtu")
+                   "az_hints", "mtu", "internal_dns")
 
 
 class CreateSubnetInfoAction(workflows.Action):
@@ -494,6 +508,9 @@ class CreateNetwork(workflows.Workflow):
                 params['availability_zone_hints'] = data['az_hints']
             if data['mtu']:
                 params['mtu'] = data['mtu']
+            # NOTE: an unset value means the field is not in the form.
+            if data.get('internal_dns') is False:
+                params['internal_dns_enabled'] = False
             network = api.neutron.network_create(request, **params)
             self.context['net_id'] = network.id
             LOG.debug('Network "%s" was successfully created.',

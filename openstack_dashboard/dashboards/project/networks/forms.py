@@ -43,6 +43,13 @@ class UpdateNetwork(forms.SelfHandlingForm):
         required=False,
         help_text=_("Share the network between projects")
     )
+    internal_dns = forms.BooleanField(
+        label=_("Internal DNS"),
+        required=False,
+        help_text=_("If checked, the names of the ports of the network are "
+                    "resolved from within the network. Uncheck it when the "
+                    "instances only use a DNS service reachable from the "
+                    "network."))
     failure_url = 'horizon:project:networks:index'
 
     def __init__(self, request, *args, **kwargs):
@@ -50,6 +57,11 @@ class UpdateNetwork(forms.SelfHandlingForm):
 
         if not policy.check((("network", "update_network:shared"),), request):
             self.fields['shared'].widget = forms.HiddenInput()
+        if (self.initial.get('internal_dns') is None or
+                not policy.check(
+                    (("network", "update_network:internal_dns_enabled"),),
+                    request)):
+            del self.fields['internal_dns']
 
     def handle(self, request, data):
         try:
@@ -60,6 +72,9 @@ class UpdateNetwork(forms.SelfHandlingForm):
             # change it neutron sends back a 403 error
             if policy.check((("network", "update_network:shared"),), request):
                 params['shared'] = data['shared']
+            if ('internal_dns' in self.fields and
+                    data['internal_dns'] != self.initial['internal_dns']):
+                params['internal_dns_enabled'] = data['internal_dns']
             network = api.neutron.network_update(request,
                                                  self.initial['network_id'],
                                                  **params)

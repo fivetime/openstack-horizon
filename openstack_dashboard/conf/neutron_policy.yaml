@@ -1075,6 +1075,10 @@
 # since W in favor of "create_network:is_default":"rule:admin_only".
 # The network API now supports system scope and default roles.
 
+# Specify ``internal_dns_enabled`` attribute when creating a network
+# POST  /networks
+#"create_network:internal_dns_enabled": "(rule:admin_only) or (role:member and project_id:%(project_id)s)"
+
 # Specify ``port_security_enabled`` attribute when creating a network
 # POST  /networks
 # Intended scope(s): project
@@ -1321,6 +1325,10 @@
 # "update_network:is_default":"rule:admin_only" has been deprecated
 # since W in favor of "update_network:is_default":"rule:admin_only".
 # The network API now supports system scope and default roles.
+
+# Specify ``internal_dns_enabled`` attribute when updating a network
+# PUT  /networks/{id}
+#"update_network:internal_dns_enabled": "(rule:admin_only) or (role:member and project_id:%(project_id)s)"
 
 # Update ``port_security_enabled`` attribute of a network
 # PUT  /networks/{id}

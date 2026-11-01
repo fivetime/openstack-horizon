@@ -53,7 +53,8 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_network_list.return_value = self.networks.list()
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
-            {'network_availability_zone': True,
+            {'network-internal-dns': False,
+             'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
         self.mock_list_dhcp_agent_hosting_networks.return_value = \
             self.agents.list()
@@ -83,7 +84,8 @@ class NetworkTests(test.BaseAdminViewTests):
     def test_index_network_list_exception(self):
         self.mock_network_list.side_effect = self.exceptions.neutron
         self._stub_is_extension_supported(
-            {'network_availability_zone': True,
+            {'network-internal-dns': False,
+             'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
 
         res = self.client.get(INDEX_URL)
@@ -107,6 +109,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_network_get.return_value = network
         self._stub_is_extension_supported(
             {'network-ip-availability': True,
+             'network-internal-dns': False,
              'network_availability_zone': True,
              'mac-learning': mac_learning,
              'dhcp_agent_scheduler': True})
@@ -147,6 +150,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self._stub_is_extension_supported(
             {'network-ip-availability': True,
              'mac-learning': mac_learning,
+             'network-internal-dns': False,
              'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
 
@@ -182,6 +186,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self._stub_is_extension_supported(
             {'network-ip-availability': True,
              'mac-learning': mac_learning,
+             'network-internal-dns': False,
              'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
 
@@ -214,6 +219,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self._stub_is_extension_supported(
             {'network-ip-availability': True,
              'mac-learning': mac_learning,
+             'network-internal-dns': False,
              'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
         self.mock_list_dhcp_agent_hosting_networks.return_value = \
@@ -302,6 +308,7 @@ class NetworkTests(test.BaseAdminViewTests):
             {'network-ip-availability': True,
              'mac-learning': mac_learning,
              'dhcp_agent_scheduler': True,
+             'network-internal-dns': False,
              'network_availability_zone': True})
 
         url = parse.unquote(reverse('horizon:admin:networks:subnets_tab',
@@ -323,6 +330,7 @@ class NetworkTests(test.BaseAdminViewTests):
             {'network-ip-availability': 1,
              'mac-learning': 1,
              'dhcp_agent_scheduler': 2,
+             'network-internal-dns': False,
              'network_availability_zone': 1})
 
     def test_network_detail_port_exception(self):
@@ -346,6 +354,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self._stub_is_extension_supported(
             {'network-ip-availability': True,
              'mac-learning': mac_learning,
+             'network-internal-dns': False,
              'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
 
@@ -377,6 +386,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': False,
              'subnet_allocation': False})
 
@@ -388,6 +398,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
             {'provider': 1,
+             'network-internal-dns': 2,
              'network_availability_zone': 2,
              'subnet_allocation': 1})
 
@@ -403,6 +414,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': False,
              'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
@@ -432,6 +444,7 @@ class NetworkTests(test.BaseAdminViewTests):
                                                          **params)
         self._check_is_extension_supported(
             {'provider': 3,
+             'network-internal-dns': 2,
              'network_availability_zone': 2,
              'subnet_allocation': 1})
 
@@ -448,6 +461,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': True,
              'subnet_allocation': True})
         self.mock_list_availability_zones.return_value = \
@@ -471,6 +485,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._stub_is_extension_supported(
             {'provider': 1,
+             'network-internal-dns': False,
              'network_availability_zone': 1,
              'subnet_allocation': 1})
         self.assert_mock_multiple_calls_with_same_arguments(
@@ -499,6 +514,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': False,
              'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
@@ -530,6 +546,7 @@ class NetworkTests(test.BaseAdminViewTests):
                                                          **params)
         self._check_is_extension_supported(
             {'provider': 3,
+             'network-internal-dns': 2,
              'network_availability_zone': 2,
              'subnet_allocation': 1})
 
@@ -546,6 +563,7 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': False,
              'subnet_allocation': True})
         self.mock_tenant_list.return_value = [tenants, False]
@@ -569,6 +587,7 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self._check_is_extension_supported(
             {'provider': 3,
+             'network-internal-dns': 2,
              'network_availability_zone': 2,
              'subnet_allocation': 1})
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
@@ -603,6 +622,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': False,
              'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
@@ -623,6 +643,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
             {'provider': 3,
+             'network-internal-dns': 2,
              'network_availability_zone': 2,
              'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
@@ -644,7 +665,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
-            {'network_availability_zone': False,
+            {'network-internal-dns': False,
+             'network_availability_zone': False,
              'subnet_allocation': False,
              'provider': True})
 
@@ -664,7 +686,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
-            {'network_availability_zone': 2,
+            {'network-internal-dns': 2,
+             'network_availability_zone': 2,
              'subnet_allocation': 1,
              'provider': 2})
 
@@ -677,7 +700,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
-            {'network_availability_zone': False,
+            {'network-internal-dns': False,
+             'network_availability_zone': False,
              'subnet_allocation': False,
              'provider': True})
 
@@ -697,7 +721,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
-            {'network_availability_zone': 2,
+            {'network-internal-dns': 2,
+             'network_availability_zone': 2,
              'subnet_allocation': 1,
              'provider': 2})
 
@@ -713,7 +738,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
-            {'network_availability_zone': False,
+            {'network-internal-dns': False,
+             'network_availability_zone': False,
              'subnet_allocation': False,
              'provider': True})
 
@@ -733,7 +759,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
-            {'network_availability_zone': 2,
+            {'network-internal-dns': 2,
+             'network_availability_zone': 2,
              'subnet_allocation': 1,
              'provider': 2})
 
@@ -747,7 +774,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
-            {'network_availability_zone': False,
+            {'network-internal-dns': False,
+             'network_availability_zone': False,
              'subnet_allocation': False,
              'provider': True})
 
@@ -762,7 +790,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
-            {'network_availability_zone': 2,
+            {'network-internal-dns': 2,
+             'network_availability_zone': 2,
              'subnet_allocation': 1,
              'provider': 1})
 
@@ -776,7 +805,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
-            {'network_availability_zone': False,
+            {'network-internal-dns': False,
+             'network_availability_zone': False,
              'subnet_allocation': False,
              'provider': True})
 
@@ -791,7 +821,8 @@ class NetworkTests(test.BaseAdminViewTests):
 
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
-            {'network_availability_zone': 2,
+            {'network-internal-dns': 2,
+             'network_availability_zone': 2,
              'subnet_allocation': 1,
              'provider': 1})
 
@@ -895,7 +926,8 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_list_dhcp_agent_hosting_networks.return_value = \
             self.agents.list()
         self._stub_is_extension_supported(
-            {'network_availability_zone': True,
+            {'network-internal-dns': False,
+             'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
         self.mock_tenant_list.return_value = [tenants, False]
         self.mock_network_list.return_value = [network]
@@ -930,7 +962,8 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_list_dhcp_agent_hosting_networks.return_value = \
             self.agents.list()
         self._stub_is_extension_supported(
-            {'network_availability_zone': True,
+            {'network-internal-dns': False,
+             'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
         self.mock_tenant_list.return_value = [tenants, False]
         self.mock_network_list.return_value = [network]
@@ -957,7 +990,8 @@ class NetworkTests(test.BaseAdminViewTests):
     @test.update_settings(FILTER_DATA_FIRST={'admin.networks': True})
     def test_networks_list_with_admin_filter_first(self):
         self._stub_is_extension_supported(
-            {'network_availability_zone': True,
+            {'network-internal-dns': False,
+             'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
 
         res = self.client.get(reverse('horizon:admin:networks:index'))
@@ -973,7 +1007,8 @@ class NetworkTests(test.BaseAdminViewTests):
                         api.neutron: ('is_extension_supported',)})
     def test_networks_list_with_non_exist_tenant_filter(self):
         self._stub_is_extension_supported(
-            {'network_availability_zone': True,
+            {'network-internal-dns': False,
+             'network_availability_zone': True,
              'dhcp_agent_scheduler': True})
         self.mock_tenant_list.return_value = [self.tenants.list(), False]
 
@@ -998,6 +1033,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': False,
              'subnet_allocation': False})
 
@@ -1009,6 +1045,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
             {'provider': 1,
+             'network-internal-dns': 2,
              'network_availability_zone': 2,
              'subnet_allocation': 1})
 
@@ -1022,6 +1059,7 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.return_value = [tenants, False]
         self._stub_is_extension_supported(
             {'provider': True,
+             'network-internal-dns': False,
              'network_availability_zone': False,
              'subnet_allocation': False})
 
@@ -1035,5 +1073,6 @@ class NetworkTests(test.BaseAdminViewTests):
         self.mock_tenant_list.assert_called_once_with(test.IsHttpRequest())
         self._check_is_extension_supported(
             {'provider': 1,
+             'network-internal-dns': 2,
              'network_availability_zone': 2,
              'subnet_allocation': 1})

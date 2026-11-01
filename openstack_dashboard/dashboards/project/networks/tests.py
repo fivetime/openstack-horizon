@@ -207,6 +207,7 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_network_get.return_value = self.networks.first()
         self.mock_tenant_quota_usages.return_value = quota_data
         self._stub_is_extension_supported({'mac-learning': mac_learning,
+                                           'network-internal-dns': False,
                                            'network_availability_zone': True})
 
         url = parse.unquote(reverse('horizon:project:networks:detail',
@@ -241,6 +242,7 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnet_list.return_value = [self.subnets.first()]
         self.mock_tenant_quota_usages.return_value = quota_data
         self._stub_is_extension_supported({'mac-learning': mac_learning,
+                                           'network-internal-dns': False,
                                            'network_availability_zone': True})
 
         url = parse.unquote(reverse('horizon:project:networks:subnets_tab',
@@ -311,6 +313,7 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnet_list.side_effect = self.exceptions.neutron
         self.mock_tenant_quota_usages.return_value = quota_data
         self._stub_is_extension_supported({'mac-learning': mac_learning,
+                                           'network-internal-dns': False,
                                            'network_availability_zone': True})
 
         url = parse.unquote(reverse('horizon:project:networks:subnets_tab',
@@ -352,6 +355,7 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnet_list.return_value = [self.subnets.first()]
         self.mock_tenant_quota_usages.return_value = quota_data
         self._stub_is_extension_supported({'mac-learning': mac_learning,
+                                           'network-internal-dns': False,
                                            'network_availability_zone': True})
 
         url = parse.unquote(reverse('horizon:project:networks:subnets_tab',
@@ -374,7 +378,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
     @test.create_mocks({api.neutron: ('is_extension_supported',
                                       'subnetpool_list')})
     def test_network_create_get(self):
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
 
@@ -388,7 +393,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                          '<CreateSubnetInfo: createsubnetinfoaction>',
                          '<CreateSubnetDetail: createsubnetdetailaction>']
         self.assertQuerySetEqual(workflow.steps, expected_objs, transform=repr)
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
 
@@ -400,7 +406,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         params = {'name': network.name,
                   'admin_state_up': network.is_admin_state_up,
                   'shared': False}
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.return_value = network
@@ -419,8 +426,49 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
             test.IsHttpRequest(), **params)
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
+
+    def _test_network_create_post_internal_dns(self, form_value, expected):
+        network = self.networks.first()
+        params = {'name': network.name,
+                  'admin_state_up': network.is_admin_state_up,
+                  'shared': False}
+        params.update(expected)
+        self._stub_is_extension_supported({'network-internal-dns': True,
+                                           'network_availability_zone': False,
+                                           'subnet_allocation': True})
+        self.mock_subnetpool_list.return_value = self.subnetpools.list()
+        self.mock_network_create.return_value = network
+
+        form_data = {'net_name': network.name,
+                     'admin_state': network.is_admin_state_up,
+                     'shared': False,
+                     'with_subnet': False}
+        if form_value:
+            form_data['internal_dns'] = form_value
+        form_data.update(form_data_no_subnet())
+        url = reverse('horizon:project:networks:create')
+        res = self.client.post(url, form_data)
+
+        self.assertNoFormErrors(res)
+        self.assertRedirectsNoFollow(res, INDEX_URL)
+        self.mock_network_create.assert_called_once_with(
+            test.IsHttpRequest(), **params)
+
+    @test.create_mocks({api.neutron: ('network_create',
+                                      'is_extension_supported',
+                                      'subnetpool_list')})
+    def test_network_create_post_internal_dns_unchecked(self):
+        self._test_network_create_post_internal_dns(
+            None, {'internal_dns_enabled': False})
+
+    @test.create_mocks({api.neutron: ('network_create',
+                                      'is_extension_supported',
+                                      'subnetpool_list')})
+    def test_network_create_post_internal_dns_checked(self):
+        self._test_network_create_post_internal_dns('on', {})
 
     @test.create_mocks({api.neutron: ('network_create',
                                       'is_extension_supported',
@@ -433,7 +481,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                   'shared': False,
                   'availability_zone_hints': ['nova']}
 
-        self._stub_is_extension_supported({'network_availability_zone': True,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': True,
                                            'subnet_allocation': True})
         self.mock_list_availability_zones.return_value = \
             self.neutron_availability_zones.list()
@@ -457,7 +506,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
             test.IsHttpRequest(), **params)
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
 
     @test.create_mocks({api.neutron: ('network_create',
@@ -469,7 +519,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                   'admin_state_up': network.is_admin_state_up,
                   'shared': False,
                   'mtu': 1450}
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.return_value = network
@@ -489,7 +540,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
             test.IsHttpRequest(), **params)
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
 
     @test.create_mocks({api.neutron: ('network_create',
@@ -500,7 +552,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         params = {'name': network.name,
                   'admin_state_up': network.is_admin_state_up,
                   'shared': True}
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.return_value = network
@@ -519,7 +572,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
             test.IsHttpRequest(), **params)
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
 
     @test.create_mocks({api.neutron: ('network_create',
@@ -543,7 +597,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
             subnet.ip_version = 4
             subnet_params['ip_version'] = subnet.ip_version
 
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.return_value = network
@@ -565,7 +620,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
             test.IsHttpRequest(), **params)
         self.mock_subnet_create.assert_called_once_with(
             test.IsHttpRequest(), **subnet_params)
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
 
     @test.update_settings(OPENSTACK_NEUTRON_NETWORK={'enable_ipv6': False})
@@ -580,7 +636,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         params = {'name': network.name,
                   'shared': False,
                   'admin_state_up': network.is_admin_state_up}
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.side_effect = self.exceptions.neutron
@@ -596,7 +653,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.assertNoFormErrors(res)
         self.assertRedirectsNoFollow(res, INDEX_URL)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
@@ -611,7 +669,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         params = {'name': network.name,
                   'shared': False,
                   'admin_state_up': network.is_admin_state_up}
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.side_effect = self.exceptions.neutron
@@ -627,7 +686,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.assertNoFormErrors(res)
         self.assertRedirectsNoFollow(res, INDEX_URL)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
@@ -644,7 +704,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         params = {'name': network.name,
                   'shared': False,
                   'admin_state_up': network.is_admin_state_up}
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.return_value = network
@@ -662,7 +723,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.assertNoFormErrors(res)
         self.assertRedirectsNoFollow(res, INDEX_URL)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
@@ -685,7 +747,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                                                     test_with_snpool=False):
         network = self.networks.first()
         subnet = self.subnets.first()
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.side_effect = self.exceptions.neutron
 
@@ -705,7 +768,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                                         'clear "Create Subnet" checkbox'
                                         ' in previous step.'))
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
 
@@ -720,7 +784,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         network = self.networks.first()
         subnet = self.subnets.first()
 
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
 
@@ -740,7 +805,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         expected_msg = "The subnet in the Network Address is too small (/32)."
         self.assertContains(res, expected_msg)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
 
@@ -757,7 +823,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         network = self.networks.first()
         subnet = self.subnets.first()
 
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
 
@@ -779,7 +846,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                         "are 192.168.0.0/16.")
         self.assertContains(res, expected_msg)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
 
@@ -798,7 +866,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         network = self.networks.first()
         subnet_v6 = self.subnets.list()[9]
 
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
 
@@ -820,7 +889,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                         "are fc00::/9.")
         self.assertContains(res, expected_msg)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
 
@@ -850,7 +920,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                          'gateway_ip': gateway_ip,
                          'enable_dhcp': subnet.is_dhcp_enabled}
 
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.return_value = network
@@ -870,7 +941,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.assertNoFormErrors(res)
         self.assertRedirectsNoFollow(res, INDEX_URL)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
         self.mock_network_create.assert_called_once_with(
@@ -885,7 +957,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         network = self.networks.first()
         subnet = self.subnets.first()
 
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
 
@@ -907,7 +980,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         expected_msg = 'Network Address and IP version are inconsistent.'
         self.assertContains(res, expected_msg)
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
 
@@ -921,7 +995,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
             self, test_with_subnetpool=False):
         network = self.networks.first()
         subnet = self.subnets.first()
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
 
@@ -942,7 +1017,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
 
         self.assertContains(res, 'Gateway IP and IP version are inconsistent.')
 
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
         self.mock_subnetpool_list.assert_called_once_with(test.IsHttpRequest())
 
@@ -962,7 +1038,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
                   'admin_state_up': network.is_admin_state_up,
                   'shared': False}
 
-        self._stub_is_extension_supported({'network_availability_zone': False,
+        self._stub_is_extension_supported({'network-internal-dns': False,
+                                           'network_availability_zone': False,
                                            'subnet_allocation': True})
         self.mock_subnetpool_list.return_value = self.subnetpools.list()
         self.mock_network_create.return_value = network
@@ -992,7 +1069,8 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.mock_subnet_create.assert_called_once_with(
             test.IsHttpRequest(),
             **subnet_params)
-        self._check_is_extension_supported({'network_availability_zone': 1,
+        self._check_is_extension_supported({'network-internal-dns': 1,
+                                            'network_availability_zone': 1,
                                             'subnet_allocation': 1})
 
     @test.create_mocks({api.neutron: ('network_get',)})
@@ -1020,6 +1098,52 @@ class NetworkTests(test.TestCase, NetworkStubMixin):
         self.assertRedirectsNoFollow(res, redir_url)
         self.mock_network_get.assert_called_once_with(
             test.IsHttpRequest(), network.id, expand_subnet=False)
+
+    def _test_network_update_post_internal_dns(self, initial, form_value,
+                                               expected):
+        network = self.networks.first()
+        network._apidict['is_internal_dns_enabled'] = initial
+        self.mock_network_update.return_value = network
+        self.mock_network_get.return_value = network
+
+        form_data = {'network_id': network.id,
+                     'shared': False,
+                     'name': network.name,
+                     'admin_state': network.is_admin_state_up,
+                     'tenant_id': network.tenant_id}
+        if form_value:
+            form_data['internal_dns'] = form_value
+        url = reverse('horizon:project:networks:update', args=[network.id])
+        res = self.client.post(url, form_data)
+
+        self.assertRedirectsNoFollow(res, INDEX_URL)
+        self.mock_network_update.assert_called_once_with(
+            test.IsHttpRequest(), network.id, name=network.name,
+            admin_state_up=network.is_admin_state_up,
+            shared=network.is_shared, **expected)
+
+    @test.create_mocks({api.neutron: ('network_update',
+                                      'network_get',)})
+    def test_network_update_post_internal_dns_disable(self):
+        self._test_network_update_post_internal_dns(
+            True, None, {'internal_dns_enabled': False})
+
+    @test.create_mocks({api.neutron: ('network_update',
+                                      'network_get',)})
+    def test_network_update_post_internal_dns_enable(self):
+        self._test_network_update_post_internal_dns(
+            False, 'on', {'internal_dns_enabled': True})
+
+    @test.create_mocks({api.neutron: ('network_update',
+                                      'network_get',)})
+    def test_network_update_post_internal_dns_unchanged(self):
+        self._test_network_update_post_internal_dns(True, 'on', {})
+
+    @test.create_mocks({api.neutron: ('network_update',
+                                      'network_get',)})
+    def test_network_update_post_internal_dns_no_extension(self):
+        # The field is not in the form, so a posted value is ignored.
+        self._test_network_update_post_internal_dns(None, None, {})
 
     @test.create_mocks({api.neutron: ('network_update',
                                       'network_get')})
@@ -1261,6 +1385,7 @@ class NetworkViewTests(test.TestCase, NetworkStubMixin):
         self.mock_network_get.return_value = self.networks.first()
         self.mock_subnet_list.return_value = self.subnets.list()
         self._stub_is_extension_supported({'mac-learning': False,
+                                           'network-internal-dns': False,
                                            'network_availability_zone': True})
         self.mock_tenant_quota_usages.return_value = quota_data
 
@@ -1333,6 +1458,7 @@ class NetworkViewTests(test.TestCase, NetworkStubMixin):
         self.mock_network_get.return_value = self.networks.first()
         self.mock_port_list.return_value = self.ports.list()
         self._stub_is_extension_supported({'mac-learning': False,
+                                           'network-internal-dns': False,
                                            'network_availability_zone': True})
         self.mock_tenant_quota_usages.return_value = quota_data
 

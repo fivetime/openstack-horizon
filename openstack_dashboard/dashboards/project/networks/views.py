@@ -128,7 +128,8 @@ class UpdateView(forms.ModalFormView):
                 'tenant_id': network['tenant_id'],
                 'name': network['name'],
                 'admin_state': network['is_admin_state_up'],
-                'shared': network['is_shared']}
+                'shared': network['is_shared'],
+                'internal_dns': network.get('is_internal_dns_enabled')}
 
 
 class DetailView(tabs.TabbedTableView):

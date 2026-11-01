@@ -157,6 +157,14 @@ class CreateNetwork(forms.SelfHandlingForm):
         help_text=_("Maximum Transmission Unit. "
                     "Minimum is 68 bytes for the IPv4 subnet "
                     "and 1280 bytes for the IPv6 subnet."))
+    internal_dns = forms.BooleanField(
+        label=_("Internal DNS"),
+        initial=True,
+        required=False,
+        help_text=_("If checked, the names of the ports of the network are "
+                    "resolved from within the network. Uncheck it when the "
+                    "instances only use a DNS service reachable from the "
+                    "network."))
 
     @classmethod
     def _instantiate(cls, request, *args, **kwargs):
@@ -170,6 +178,10 @@ class CreateNetwork(forms.SelfHandlingForm):
             if tenant.enabled:
                 tenant_choices.append((tenant.id, tenant.name))
         self.fields['tenant_id'].choices = tenant_choices
+
+        if not api.neutron.is_extension_supported(request,
+                                                  'network-internal-dns'):
+            del self.fields['internal_dns']
 
         try:
             is_extension_supported = \
@@ -296,6 +308,9 @@ class CreateNetwork(forms.SelfHandlingForm):
                 params['availability_zone_hints'] = data['az_hints']
             if data['mtu']:
                 params['mtu'] = data['mtu']
+            # NOTE: an unset value means the field is not in the form.
+            if data.get('internal_dns') is False:
+                params['internal_dns_enabled'] = False
             network = api.neutron.network_create(request, **params)
             LOG.debug('Network %s was successfully created.', data['name'])
             return network
@@ -358,8 +373,20 @@ class UpdateNetwork(forms.SelfHandlingForm):
                     "facility that is not managed by "
                     "Neutron")
     )
+    internal_dns = forms.BooleanField(
+        label=_("Internal DNS"),
+        required=False,
+        help_text=_("If checked, the names of the ports of the network are "
+                    "resolved from within the network. Uncheck it when the "
+                    "instances only use a DNS service reachable from the "
+                    "network."))
 
     failure_url = 'horizon:admin:networks:index'
+
+    def __init__(self, request, *args, **kwargs):
+        super().__init__(request, *args, **kwargs)
+        if self.initial.get('internal_dns') is None:
+            del self.fields['internal_dns']
 
     def handle(self, request, data):
         try:
@@ -367,6 +394,9 @@ class UpdateNetwork(forms.SelfHandlingForm):
                       'admin_state_up': data['admin_state'],
                       'shared': data['shared'],
                       'router:external': data['external']}
+            if ('internal_dns' in self.fields and
+                    data['internal_dns'] != self.initial['internal_dns']):
+                params['internal_dns_enabled'] = data['internal_dns']
             network = api.neutron.network_update(request,
                                                  self.initial['network_id'],
                                                  **params)

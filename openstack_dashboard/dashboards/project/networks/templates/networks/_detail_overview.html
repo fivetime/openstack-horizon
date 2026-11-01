@@ -18,6 +18,10 @@
     <dd>{{ network.is_router_external|yesno|capfirst }}</dd>
     <dt title="{% trans 'MTU' %}">{% trans "MTU" %}</dt>
     <dd>{{ network.mtu|default:_("Unknown") }}</dd>
+    {% if network.is_internal_dns_enabled is not None %}
+    <dt title="{% trans 'Internal DNS' %}">{% trans "Internal DNS" %}</dt>
+    <dd>{{ network.is_internal_dns_enabled|yesno|capfirst }}</dd>
+    {% endif %}
     {% if network.provider_network_type %}
     <dt title="{% trans 'Provider Network' %}">{% trans "Provider Network" %}</dt>
     <dd>{% trans "Network Type:" %} {{ network.provider_network_type|default:_("Unknown") }}</dd>

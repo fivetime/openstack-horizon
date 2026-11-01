@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Added the ``Internal DNS`` option to the forms that create and edit a
+    network, and to the network details page. It is shown when the Networking
+    service has the ``network-internal-dns`` API extension, and it sets the
+    ``internal_dns_enabled`` attribute of the network. It requires an
+    openstacksdk version with the ``is_internal_dns_enabled`` attribute of the
+    network resource.
