@@ -80,6 +80,14 @@ class CreateNetworkInfoAction(workflows.Action):
                     "resolved from within the network. Uncheck it when the "
                     "instances only use a DNS service reachable from the "
                     "network."))
+    metadata_stateful_ipv6 = forms.BooleanField(
+        label=_("Metadata address on stateful IPv6 subnets"),
+        initial=False,
+        required=False,
+        help_text=_("If checked, the metadata port gets an address on the "
+                    "IPv6 subnets of the network whose addresses are not "
+                    "assigned automatically, using an address of each of "
+                    "them."))
 
     def __init__(self, request, *args, **kwargs):
         super().__init__(request, *args, **kwargs)
@@ -91,6 +99,12 @@ class CreateNetworkInfoAction(workflows.Action):
                                                    'network-internal-dns') and
                 policy.check(internal_dns_rule, request)):
             del self.fields['internal_dns']
+        metadata_ipv6_rule = (
+            ("network", "create_network:metadata_stateful_ipv6_address"),)
+        if not (api.neutron.is_extension_supported(
+                    request, 'network-metadata-stateful-ipv6') and
+                policy.check(metadata_ipv6_rule, request)):
+            del self.fields['metadata_stateful_ipv6']
         try:
             if api.neutron.is_extension_supported(request,
                                                   'network_availability_zone'):
@@ -115,7 +129,8 @@ class CreateNetworkInfoAction(workflows.Action):
 class CreateNetworkInfo(workflows.Step):
     action_class = CreateNetworkInfoAction
     contributes = ("net_name", "admin_state", "with_subnet", "shared",
-                   "az_hints", "mtu", "internal_dns")
+                   "az_hints", "mtu", "internal_dns",
+                   "metadata_stateful_ipv6")
 
 
 class CreateSubnetInfoAction(workflows.Action):
@@ -511,6 +526,8 @@ class CreateNetwork(workflows.Workflow):
             # NOTE: an unset value means the field is not in the form.
             if data.get('internal_dns') is False:
                 params['internal_dns_enabled'] = False
+            if data.get('metadata_stateful_ipv6'):
+                params['metadata_stateful_ipv6_address'] = True
             network = api.neutron.network_create(request, **params)
             self.context['net_id'] = network.id
             LOG.debug('Network "%s" was successfully created.',

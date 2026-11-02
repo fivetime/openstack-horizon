@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Added the "Metadata address on stateful IPv6 subnets" option to the forms
+    creating and editing a network and to the network details. They are shown
+    with the ``network-metadata-stateful-ipv6`` extension of the Networking
+    service.

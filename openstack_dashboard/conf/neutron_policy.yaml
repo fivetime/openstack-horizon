@@ -1079,6 +1079,10 @@
 # POST  /networks
 #"create_network:internal_dns_enabled": "(rule:admin_only) or (role:member and project_id:%(project_id)s)"
 
+# Specify ``metadata_stateful_ipv6_address`` attribute when creating a network
+# POST  /networks
+#"create_network:metadata_stateful_ipv6_address": "(rule:admin_only) or (role:member and project_id:%(project_id)s)"
+
 # Specify ``port_security_enabled`` attribute when creating a network
 # POST  /networks
 # Intended scope(s): project
@@ -1329,6 +1333,10 @@
 # Specify ``internal_dns_enabled`` attribute when updating a network
 # PUT  /networks/{id}
 #"update_network:internal_dns_enabled": "(rule:admin_only) or (role:member and project_id:%(project_id)s)"
+
+# Specify ``metadata_stateful_ipv6_address`` attribute when updating a network
+# PUT  /networks/{id}
+#"update_network:metadata_stateful_ipv6_address": "(rule:admin_only) or (role:member and project_id:%(project_id)s)"
 
 # Update ``port_security_enabled`` attribute of a network
 # PUT  /networks/{id}

@@ -50,6 +50,13 @@ class UpdateNetwork(forms.SelfHandlingForm):
                     "resolved from within the network. Uncheck it when the "
                     "instances only use a DNS service reachable from the "
                     "network."))
+    metadata_stateful_ipv6 = forms.BooleanField(
+        label=_("Metadata address on stateful IPv6 subnets"),
+        required=False,
+        help_text=_("If checked, the metadata port gets an address on the "
+                    "IPv6 subnets of the network whose addresses are not "
+                    "assigned automatically, using an address of each of "
+                    "them."))
     failure_url = 'horizon:project:networks:index'
 
     def __init__(self, request, *args, **kwargs):
@@ -62,6 +69,12 @@ class UpdateNetwork(forms.SelfHandlingForm):
                     (("network", "update_network:internal_dns_enabled"),),
                     request)):
             del self.fields['internal_dns']
+        if (self.initial.get('metadata_stateful_ipv6') is None or
+                not policy.check(
+                    (("network",
+                      "update_network:metadata_stateful_ipv6_address"),),
+                    request)):
+            del self.fields['metadata_stateful_ipv6']
 
     def handle(self, request, data):
         try:
@@ -75,6 +88,11 @@ class UpdateNetwork(forms.SelfHandlingForm):
             if ('internal_dns' in self.fields and
                     data['internal_dns'] != self.initial['internal_dns']):
                 params['internal_dns_enabled'] = data['internal_dns']
+            if ('metadata_stateful_ipv6' in self.fields and
+                    data['metadata_stateful_ipv6'] !=
+                    self.initial['metadata_stateful_ipv6']):
+                params['metadata_stateful_ipv6_address'] = (
+                    data['metadata_stateful_ipv6'])
             network = api.neutron.network_update(request,
                                                  self.initial['network_id'],
                                                  **params)

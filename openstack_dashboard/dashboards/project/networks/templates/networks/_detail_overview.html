@@ -22,6 +22,10 @@
     <dt title="{% trans 'Internal DNS' %}">{% trans "Internal DNS" %}</dt>
     <dd>{{ network.is_internal_dns_enabled|yesno|capfirst }}</dd>
     {% endif %}
+    {% if network.is_metadata_stateful_ipv6_address is not None %}
+    <dt title="{% trans 'Metadata address on stateful IPv6 subnets' %}">{% trans "Metadata address on stateful IPv6 subnets" %}</dt>
+    <dd>{{ network.is_metadata_stateful_ipv6_address|yesno|capfirst }}</dd>
+    {% endif %}
     {% if network.provider_network_type %}
     <dt title="{% trans 'Provider Network' %}">{% trans "Provider Network" %}</dt>
     <dd>{% trans "Network Type:" %} {{ network.provider_network_type|default:_("Unknown") }}</dd>

@@ -163,7 +163,9 @@ class UpdateView(user_views.UpdateView):
                 'admin_state': network['is_admin_state_up'],
                 'shared': network['is_shared'],
                 'external': network['is_router_external'],
-                'internal_dns': network.get('is_internal_dns_enabled')}
+                'internal_dns': network.get('is_internal_dns_enabled'),
+                'metadata_stateful_ipv6': network.get(
+                    'is_metadata_stateful_ipv6_address')}
 
 
 class NetworkDetailsTabs(tabs.DetailTabsGroup):

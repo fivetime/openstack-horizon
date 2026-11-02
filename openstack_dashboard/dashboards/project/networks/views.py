@@ -129,7 +129,9 @@ class UpdateView(forms.ModalFormView):
                 'name': network['name'],
                 'admin_state': network['is_admin_state_up'],
                 'shared': network['is_shared'],
-                'internal_dns': network.get('is_internal_dns_enabled')}
+                'internal_dns': network.get('is_internal_dns_enabled'),
+                'metadata_stateful_ipv6': network.get(
+                    'is_metadata_stateful_ipv6_address')}
 
 
 class DetailView(tabs.TabbedTableView):
